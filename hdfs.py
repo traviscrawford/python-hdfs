@@ -26,6 +26,18 @@ class tObjectKind(Structure):
   _fields_ = [('kObjectKindFile', c_char),
               ('kObjectKindDirectory', c_char)]
 
+# flags
+O_RDONLY = 1
+O_WRONLY = 2
+
+# hdfsStreamType
+UNINITIALIZED = 0
+INPUT = 1
+OUTPUT = 2
+
+class hdfsFile(Structure):
+  _fields_ = [('file', c_void_p),
+              ('type', c_int)]
 
 # TODO: Figure out the "right way" to deal with typedef. This feels fragile.
 # TODO: time_t is almost certainly incorrect.
@@ -53,12 +65,14 @@ libhdfs.hdfsDisconnect.argtypes = [c_void_p]
 libhdfs.hdfsListDirectory.argtypes = [c_void_p, c_char_p, POINTER(c_int)]
 libhdfs.hdfsListDirectory.restype = POINTER(hdfsFileInfo)
 
+# hdfsFile hdfsOpenFile(hdfsFS fs, const char* path, int flags,
+#                       int bufferSize, short replication, tSize blocksize);
+libhdfs.hdfsOpenFile.argtypes = [c_void_p, c_char_p, c_int, c_int, c_short, c_longlong]
+libhdfs.hdfsOpenFile.restype = hdfsFile
+
 
 class Hdfs(object):
   # TODO: Maybe have a mode that reuses connections instead of one per file?
-
-  O_RDONLY = 1
-  O_WRONLY = 2
 
   def __init__(self, hostname, port):
     self.fs = None
@@ -84,19 +98,19 @@ class Hdfs(object):
 
     flags = None
     if mode == 'r':
-      flags = Hdfs.O_RDONLY
+      flags = O_RDONLY
     elif mode == 'w':
-      flags = Hdfs.O_WRONLY
+      flags = O_WRONLY
     else:
       raise HdfsError('Invalid open flags.')
 
     logger.critical('Opening <%s>' % filename)
-    print self.fs, filename, flags, buffer_size, replication, block_size
 
     self.filename = filename
-    self.fh = libhdfs.hdfsOpenFile(self.fs, self.filename, flags, buffer_size, replication, block_size)
+    self.fh = libhdfs.hdfsOpenFile(self.fs, self.filename, flags, buffer_size,
+                                   replication, block_size)
     if not self.fh:
-      raise HdfsError('Failed opning file <%s> on filesystem <%s:%d>' % (self.filename, self.hostname, self.port))
+      raise HdfsError('Failed opening <%s>' % self.filename
 
   def close(self):
     if not self.fs:
@@ -105,9 +119,9 @@ class Hdfs(object):
     if not self.fh:
       raise HdfsError('No file handle!')
 
-    logger.critical('Closing file <%s> on filesystem <%s:%d>' % (self.filename, self.hostname, self.port))
+    logger.critical('Closing <%s>' % self.filename
     if (libhdfs.hdfsCloseFile(self.fs, self.fh) == -1):
-      raise HdfsError('Failed closing file <%s> on filesystem <%s:%d>' % (self.filename, self.hostname, self.port))
+      raise HdfsError('Failed closing <%s>' % self.filename
 
 
   def ls(self, path):
@@ -124,7 +138,6 @@ if __name__ == '__main__':
   logging.basicConfig()
   hdfs = Hdfs('hadoop.twitter.com', 8020)
   hdfs.ls('/user/travis')
-  #hdfs.open('/user/travis/hosts', 'r')
-  
+  hdfs.open('/user/travis/hosts', 'r')
 
 # EOF
