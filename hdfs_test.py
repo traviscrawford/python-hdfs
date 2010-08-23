@@ -4,7 +4,6 @@ import unittest
 from datetime import datetime
 from hdfs import *
 
-
 class ConnectDisconnectTestCase(unittest.TestCase):
   def test_connect_disconnect(self):
     fs = hdfsConnect('hadoop.twitter.com', 8020)
@@ -80,12 +79,35 @@ class ReadWriteTestCase(unittest.TestCase):
     hdfsDisconnect(self.fs)
 
 
+class DeleteTestCase(unittest.TestCase):
+  def test_delete(self):
+    path = '/user/travis/test_%s' % datetime.now().strftime('%Y%m%dT%H%M%SZ')
+    fs = hdfsConnect('hadoop.twitter.com', 8020)
+    fh = hdfsOpen(fs, path, 'w')
+    hdfsClose(fs, fh)
+    hdfsDelete(fs, path)
+    hdfsDisconnect(fs)
+
+class RenameTestCase(unittest.TestCase):
+  def test_rename(self):
+    path = '/user/travis/test_%s' % datetime.now().strftime('%Y%m%dT%H%M%SZ')
+    new_path = path + '_new'
+    fs = hdfsConnect('hadoop.twitter.com', 8020)
+    fh = hdfsOpen(fs, path, 'w')
+    hdfsClose(fs, fh)
+    hdfsRename(fs, path, new_path)
+    hdfsDelete(fs, new_path)
+    hdfsDisconnect(fs)
+
+
 if __name__ == '__main__':
   test_cases = [ConnectDisconnectTestCase,
                 ExistsTestCase,
                 ListDirectoryTestCase,
                 OpenCloseTestCase,
                 ReadWriteTestCase,
+                DeleteTestCase,
+                RenameTestCase,
                ]
   for test_case in test_cases:
     suite = unittest.TestLoader().loadTestsFromTestCase(test_case)
