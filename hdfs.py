@@ -21,14 +21,12 @@ if not os.getenv("CLASSPATH"):
 
 libhdfs = cdll.LoadLibrary('libhdfs.so')
 
+tSize = c_int32
+hdfsFS = c_void_p
 
 class tObjectKind(Structure):
   _fields_ = [('kObjectKindFile', c_char),
               ('kObjectKindDirectory', c_char)]
-
-# flags
-O_RDONLY = 1
-O_WRONLY = 2
 
 # hdfsStreamType
 UNINITIALIZED = 0
@@ -53,91 +51,104 @@ class hdfsFileInfo(Structure):
               ('mPermissions', c_short),   # the permissions associated with the file
               ('mLastAccess', c_long)]      # the last access time for the file in seconds
 
-
 # hdfsFS hdfsConnect(const char* host, tPort port);
 libhdfs.hdfsConnect.argtypes = [c_char_p, c_uint16]
 libhdfs.hdfsConnect.restype = c_void_p
-
+def hdfsConnect(hostname, port):
+  """Returns an HDFS filesystem connection"""
+  fs = libhdfs.hdfsConnect(hostname, port)
+  if not fs:
+    raise HdfsError('Failed connecting to %s:%d' % (hostname, port))
+  return fs
+  
 # int hdfsDisconnect(hdfsFS fs);
 libhdfs.hdfsDisconnect.argtypes = [c_void_p]
+def hdfsDisconnect(fs):
+  if libhdfs.hdfsDisconnect(fs):
+    raise HdfsError('Failed disconnecting!')
+
+# int hdfsExists(hdfsFS fs, const char *path);
+libhdfs.hdfsExists.argtypes = [c_void_p, c_char_p]
+def hdfsExists(fs, path):
+  """Returns True if the path exists"""
+  if libhdfs.hdfsExists(fs, path) == 0:
+    return True
+  else:
+    return False
 
 # hdfsFileInfo *hdfsListDirectory(hdfsFS fs, const char* path, int *numEntries);
 libhdfs.hdfsListDirectory.argtypes = [c_void_p, c_char_p, POINTER(c_int)]
 libhdfs.hdfsListDirectory.restype = POINTER(hdfsFileInfo)
+def hdfsListDirectory(fs, path):
+  """Returns a list of absolute path names"""
+  if not hdfsExists(fs, path):
+    return None
+
+  path = c_char_p(path)
+  num_entries = c_int()
+  entries = []
+  entries_p = libhdfs.hdfsListDirectory(fs, path, pointer(num_entries))
+  [entries.append(entries_p[i].mName) for i in range(num_entries.value)]
+  return sorted(entries)
 
 # hdfsFile hdfsOpenFile(hdfsFS fs, const char* path, int flags,
 #                       int bufferSize, short replication, tSize blocksize);
-libhdfs.hdfsOpenFile.argtypes = [c_void_p, c_char_p, c_int, c_int, c_short, c_longlong]
-libhdfs.hdfsOpenFile.restype = hdfsFile
+libhdfs.hdfsOpenFile.argtypes = [c_void_p, c_char_p, c_int, c_int, c_short, c_int32]
+#libhdfs.hdfsOpenFile.restype = hdfsFile
+libhdfs.hdfsOpenFile.restype = c_void_p
+def hdfsOpen(fs, filename, mode, buffer_size=0, replication=0, block_size=0):
+  if not fs:
+    raise HdfsError('No filesystem!')
 
+  flags = None
+  if mode == 'r':
+    flags = os.O_RDONLY
+  elif mode == 'w':
+    flags = os.O_WRONLY
+  else:
+    raise HdfsError('Invalid open flags.')
 
-class Hdfs(object):
-  # TODO: Maybe have a mode that reuses connections instead of one per file?
+  fh = libhdfs.hdfsOpenFile(fs, filename, flags, buffer_size,
+                            replication, block_size)
+  if not fh:
+    raise HdfsError('Failed opening <%s>' % filename)
 
-  def __init__(self, hostname, port):
-    self.fs = None
-    self.fh = None
-    self.filename = None
-    self.hostname = hostname
-    self.port = port
-    logger.critical('Connecting to <%s:%d>' % (self.hostname, self.port))
-    self.fs = libhdfs.hdfsConnect(self.hostname, self.port)
-    if not self.fs:
-      raise HdfsError('Failed connecting to %s:%d' % (self.hostname, self.port))
+  return fh
 
-  def __del__(self):
-    if self.fh:
-      self.close()
-    if self.fs:
-      logger.critical('Disconnecting from %s:%d' % (self.hostname, self.port))
-      libhdfs.hdfsDisconnect(self.fs)
+# int hdfsCloseFile(hdfsFS fs, hdfsFile file);
+libhdfs.hdfsCloseFile.argtypes = [c_void_p, c_void_p]
+def hdfsClose(fs, fh):
+  if (libhdfs.hdfsCloseFile(fs, fh) == -1):
+    raise HdfsError()
 
-  def open(self, filename, mode, buffer_size=0, replication=0, block_size=0):
-    if not self.fs:
-      raise HdfsError()
+#tSize hdfsWrite(hdfsFS fs, hdfsFile file, const void* buffer, tSize length);
+libhdfs.hdfsWrite.argtypes = [hdfsFS, c_void_p, c_void_p, tSize]
+libhdfs.hdfsWrite.restype = tSize
+def hdfsWrite(fs, fh, buffer):
+  sb = create_string_buffer(buffer)
+  buffer_p = cast(sb, c_void_p)
 
-    flags = None
-    if mode == 'r':
-      flags = O_RDONLY
-    elif mode == 'w':
-      flags = O_WRONLY
-    else:
-      raise HdfsError('Invalid open flags.')
+  ret = libhdfs.hdfsWrite(fs, fh, buffer_p, len(buffer))
 
-    logger.critical('Opening <%s>' % filename)
+  if ret == -1:
+    raise HdfsError('write failure')
+  return ret
 
-    self.filename = filename
-    self.fh = libhdfs.hdfsOpenFile(self.fs, self.filename, flags, buffer_size,
-                                   replication, block_size)
-    if not self.fh:
-      raise HdfsError('Failed opening <%s>' % self.filename
+# tSize hdfsRead(hdfsFS fs, hdfsFile file, void* buffer, tSize length);
+libhdfs.hdfsRead.argtypes = [hdfsFS, c_void_p, c_void_p, tSize]
+libhdfs.hdfsRead.restype = tSize
+def hdfsRead(fs, fh):
+  if not fs:
+    raise HdfsError('No filesystem!')
+  if not fh:
+    raise HdfsError('No file handle!')
 
-  def close(self):
-    if not self.fs:
-      raise HdfsError('No filesystem!')
+  buffer = create_string_buffer(1024*1024)
+  buffer_p = cast(buffer, c_void_p)
 
-    if not self.fh:
-      raise HdfsError('No file handle!')
-
-    logger.critical('Closing <%s>' % self.filename
-    if (libhdfs.hdfsCloseFile(self.fs, self.fh) == -1):
-      raise HdfsError('Failed closing <%s>' % self.filename
-
-
-  def ls(self, path):
-    path = c_char_p(path)
-    num_entries = c_int()
-
-    entries = libhdfs.hdfsListDirectory(self.fs, path, pointer(num_entries))
-    logger.critical('Number of entries: %d' % num_entries.value)
-    for i in range(num_entries.value):
-      print entries[i].mName
-
-
-if __name__ == '__main__':
-  logging.basicConfig()
-  hdfs = Hdfs('hadoop.twitter.com', 8020)
-  hdfs.ls('/user/travis')
-  hdfs.open('/user/travis/hosts', 'r')
+  ret = libhdfs.hdfsRead(fs, fh, buffer_p, 1024*1024)
+  if ret == -1:
+    raise HdfsError('read failure')
+  return buffer.value[0:ret]
 
 # EOF
