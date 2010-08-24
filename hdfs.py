@@ -195,14 +195,18 @@ def hdfsExists(fs, path):
 libhdfs.hdfsSeek.argtypes = [hdfsFS, hdfsFile, tOffset]
 libhdfs.hdfsSeek.restype = c_int
 def hdfsSeek(fs, fh, desired_pos):
-  """Seek to given offset in file. This works only for files opened in read-only mode.
+  """Seek to given offset in file. This works only for
+  files opened in read-only mode.
 
   @param fs The configured filesystem handle.
   @param file The file handle.
   @param desiredPos Offset into the file to seek into.
   @return Returns 0 on success, -1 on error.
   """
-  raise NotImplementedError, "TODO(travis)"
+  if libhdfs.hdfsSeek(fs, fh, desired_pos) == 0:
+    return True
+  else:
+    return False
 
 # tOffset hdfsTell(hdfsFS fs, hdfsFile file);
 libhdfs.hdfsTell.argtypes = [hdfsFS, hdfsFile]
@@ -214,7 +218,11 @@ def hdfsTell(fs, fh):
   @param file The file handle.
   @return Current offset, -1 on error.
   """
-  raise NotImplementedError, "TODO(travis)"
+  ret = libhdfs.hdfsTell(fs, fh)
+  if ret != -1:
+    return ret
+  else:
+    raise HdfsError('hdfsTell failed')
 
 # tSize hdfsRead(hdfsFS fs, hdfsFile file, void* buffer, tSize length);
 libhdfs.hdfsRead.argtypes = [hdfsFS, c_void_p, c_void_p, tSize]

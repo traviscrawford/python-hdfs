@@ -63,7 +63,6 @@ class ReadWriteTestCase(unittest.TestCase):
   def test_read_write(self):
     path = '/user/travis/test_%s' % datetime.now().strftime('%Y%m%dT%H%M%SZ')
     data = 'read write test'
-    #path = '/user/travis/scribe.conf'
 
     fh = hdfsOpen(self.fs, path, 'w')
     bytes_written = hdfsWrite(self.fs, fh, data)
@@ -71,13 +70,18 @@ class ReadWriteTestCase(unittest.TestCase):
     hdfsClose(self.fs, fh)
 
     fh = hdfsOpen(self.fs, path, 'r')
+
+    self.assertTrue(hdfsSeek(self.fs, fh, 10))
+    self.assertEqual(hdfsTell(self.fs, fh), 10)
+
+    hdfsSeek(self.fs, fh, 0)
+
     read_data = hdfsRead(self.fs, fh)
     self.assertEqual(read_data, data)
     hdfsClose(self.fs, fh)
 
   def tearDown(self):
     hdfsDisconnect(self.fs)
-
 
 class DeleteTestCase(unittest.TestCase):
   def test_delete(self):
