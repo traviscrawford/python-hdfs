@@ -11,38 +11,22 @@ import os
 
 from ctypes import *
 
-logger = logging.getLogger()
-
-
 class HdfsError(Exception):
   def __init__(self, value):
     self.value = value
   def __str__(self):
     return repr(self.value)
 
-
-
 tSize = c_int32
 tTime = c_long # double-check this
 tOffset = c_int64
 tPort = c_uint16
 hdfsFS = c_void_p
-
+hdfsFile = c_void_p
 
 class tObjectKind(Structure):
   _fields_ = [('kObjectKindFile', c_char),
               ('kObjectKindDirectory', c_char)]
-
-
-# hdfsStreamType
-UNINITIALIZED = 0
-INPUT = 1
-OUTPUT = 2
-
-hdfsFile = c_void_p
-#class hdfsFile(Structure):
-#  _fields_ = [('file', c_void_p),
-#              ('type', c_int)]
 
 # TODO: Figure out the "right way" to deal with typedef. This feels fragile.
 # TODO: time_t is almost certainly incorrect.
@@ -58,7 +42,6 @@ class hdfsFileInfo(Structure):
               ('mPermissions', c_short),   # the permissions associated with the file
               ('mLastAccess', c_long)]      # the last access time for the file in seconds
 
-
 #/** 
 # * hdfsPread - Positional read of data from an open file.
 # * @param fs The configured filesystem handle.
@@ -72,8 +55,6 @@ class hdfsFileInfo(Structure):
 #tSize hdfsPread(hdfsFS fs, hdfsFile file, tOffset position,
 #                void* buffer, tSize length);
 
-
-
 """
 /** 
 * hdfsGetWorkingDirectory - Get the current working directory for
@@ -85,7 +66,6 @@ class hdfsFileInfo(Structure):
 */
 char* hdfsGetWorkingDirectory(hdfsFS fs, char *buffer, size_t bufferSize);
 
-
 /** 
 * hdfsSetWorkingDirectory - Set the working directory. All relative
 * paths will be resolved relative to it.
@@ -94,7 +74,6 @@ char* hdfsGetWorkingDirectory(hdfsFS fs, char *buffer, size_t bufferSize);
 * @return Returns 0 on success, -1 on error. 
 */
 int hdfsSetWorkingDirectory(hdfsFS fs, const char* path);
-
 
 /** 
 * hdfsCreateDirectory - Make the given file and all non-existent
@@ -105,7 +84,6 @@ int hdfsSetWorkingDirectory(hdfsFS fs, const char* path);
 */
 int hdfsCreateDirectory(hdfsFS fs, const char* path);
 
-
 /** 
 * hdfsSetReplication - Set the replication of the specified
 * file to the supplied value
@@ -114,7 +92,6 @@ int hdfsCreateDirectory(hdfsFS fs, const char* path);
 * @return Returns 0 on success, -1 on error. 
 */
 int hdfsSetReplication(hdfsFS fs, const char* path, int16_t replication);
-
 
 /** 
 * hdfsFileInfo - Information about a file/directory.
@@ -131,56 +108,49 @@ char *mGroup;        /* the group associated with the file */
 short mPermissions;  /* the permissions associated with the file */
 tTime mLastAccess;    /* the last access time for the file in seconds */
 } hdfsFileInfo;
+
+/** 
+* hdfsGetPathInfo - Get information about a path as a (dynamically
+* allocated) single hdfsFileInfo struct. hdfsFreeFileInfo should be
+* called when the pointer is no longer needed.
+* @param fs The configured filesystem handle.
+* @param path The path of the file. 
+* @return Returns a dynamically-allocated hdfsFileInfo object;
+* NULL on error.
+*/
+hdfsFileInfo *hdfsGetPathInfo(hdfsFS fs, const char* path);
+
+/** 
+* hdfsFreeFileInfo - Free up the hdfsFileInfo array (including fields) 
+* @param hdfsFileInfo The array of dynamically-allocated hdfsFileInfo
+* objects.
+* @param numEntries The size of the array.
+*/
+void hdfsFreeFileInfo(hdfsFileInfo *hdfsFileInfo, int numEntries);
+
+/** 
+* hdfsGetHosts - Get hostnames where a particular block (determined by
+* pos & blocksize) of a file is stored. The last element in the array
+* is NULL. Due to replication, a single block could be present on
+* multiple hosts.
+* @param fs The configured filesystem handle.
+* @param path The path of the file. 
+* @param start The start of the block.
+* @param length The length of the block.
+* @return Returns a dynamically-allocated 2-d array of blocks-hosts;
+* NULL on error.
+*/
+char*** hdfsGetHosts(hdfsFS fs, const char* path, 
+    tOffset start, tOffset length);
+
+/** 
+* hdfsFreeHosts - Free up the structure returned by hdfsGetHosts
+* @param hdfsFileInfo The array of dynamically-allocated hdfsFileInfo
+* objects.
+* @param numEntries The size of the array.
+*/
+void hdfsFreeHosts(char ***blockHosts);
 """
-
-
-"""
-    /** 
-     * hdfsGetPathInfo - Get information about a path as a (dynamically
-     * allocated) single hdfsFileInfo struct. hdfsFreeFileInfo should be
-     * called when the pointer is no longer needed.
-     * @param fs The configured filesystem handle.
-     * @param path The path of the file. 
-     * @return Returns a dynamically-allocated hdfsFileInfo object;
-     * NULL on error.
-     */
-    hdfsFileInfo *hdfsGetPathInfo(hdfsFS fs, const char* path);
-
-
-    /** 
-     * hdfsFreeFileInfo - Free up the hdfsFileInfo array (including fields) 
-     * @param hdfsFileInfo The array of dynamically-allocated hdfsFileInfo
-     * objects.
-     * @param numEntries The size of the array.
-     */
-    void hdfsFreeFileInfo(hdfsFileInfo *hdfsFileInfo, int numEntries);
-
-
-
-    /** 
-     * hdfsGetHosts - Get hostnames where a particular block (determined by
-     * pos & blocksize) of a file is stored. The last element in the array
-     * is NULL. Due to replication, a single block could be present on
-     * multiple hosts.
-     * @param fs The configured filesystem handle.
-     * @param path The path of the file. 
-     * @param start The start of the block.
-     * @param length The length of the block.
-     * @return Returns a dynamically-allocated 2-d array of blocks-hosts;
-     * NULL on error.
-     */
-    char*** hdfsGetHosts(hdfsFS fs, const char* path, 
-            tOffset start, tOffset length);
-
-    /** 
-     * hdfsFreeHosts - Free up the structure returned by hdfsGetHosts
-     * @param hdfsFileInfo The array of dynamically-allocated hdfsFileInfo
-     * objects.
-     * @param numEntries The size of the array.
-     */
-    void hdfsFreeHosts(char ***blockHosts);
-"""
-
 
 class HDFS(object):
 
@@ -512,5 +482,3 @@ class HDFS(object):
     if ret == -1:
       raise HdfsError('write failure')
     return ret
-
-# EOF
