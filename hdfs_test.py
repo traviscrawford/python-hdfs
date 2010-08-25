@@ -1,42 +1,63 @@
 #!/usr/bin/python26
 
+import hdfs
 import unittest
 from datetime import datetime
-from hdfs import *
+from StringIO import StringIO
 
 hostname = 'hadoop.twitter.com'
 port = 8020
+path = '/user/travis/test_%s' % datetime.now().strftime('%Y%m%dT%H%M%SZ')
+data = 'read write test'
 
-class BasicTestCase(unittest.TestCase):
-  def test_basic_functionality(self):
-    path = '/user/travis/test_%s' % datetime.now().strftime('%Y%m%dT%H%M%SZ')
-    data = 'read write test'
 
-    fs = HDFS(hostname, port)
+class FilesystemTestCase(unittest.TestCase):
 
-    fh = fs.open(path, 'w')
-    bytes_written = fs.write(fh, data)
-    self.assertEqual(bytes_written, len(data))
-    fs.close(fh)
-
-    fh = fs.open(path)
-    self.assertTrue(fs.seek(fh, 10))
-    self.assertEqual(fs.tell(fh), 10)
-    fs.seek(fh, 0)
-    read_data = fs.read(fh)
-    self.assertEqual(read_data, data)
-    fs.close(fh)
-
+  def test_filesystem(self):
+    fs = hdfs.Filesystem(hostname, port)
     self.assertTrue(fs.exists(path))
     self.assertFalse(fs.exists(path + 'doesnotexist'))
 
     self.assertTrue(fs.rename(path, path + 'renamed'))
 
     self.assertTrue(fs.delete(path + 'renamed'))
-    self.assertFalse(fs.delete(path + 'doesnotexist'))
+    self.assertFalse(fs.delete(path))
+
+
+class FileTestCase(unittest.TestCase):
+
+  def test_file(self):
+    hfile = hdfs.File(hostname, port, path, mode='w')
+    self.assertTrue(hfile.write(data))
+    hfile.close()
+
+    hfile = hdfs.File(hostname, port, path)
+
+    self.assertTrue(hfile.seek(10))
+    self.assertEqual(hfile.tell(), 10)
+    hfile.seek(0)
+
+    read_data = hfile.read()
+    self.assertEqual(read_data, data)
+
+    hfile.close()
+
+  def test_iter(self):
+    data = StringIO('a\nb\nc')
+    hfile = hdfs.File(hostname, port, path, mode='w')
+    for line in data:
+      self.assertTrue(hfile.write(line))
+    hfile.close()
+
+    hfile = hdfs.File(hostname, port, path)
+    for line in hfile:
+      print "==> Read line: %s" % line
+
+    #self.assertEqual(data, read_data)
 
 if __name__ == '__main__':
-  test_cases = [BasicTestCase,
+  test_cases = [#FilesystemTestCase,
+                FileTestCase,
                ]
   for test_case in test_cases:
     suite = unittest.TestLoader().loadTestsFromTestCase(test_case)
