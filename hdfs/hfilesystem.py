@@ -130,9 +130,12 @@ class Hfilesystem(object):
 
     @param fs The configured filesystem handle.
     @param path The path of the directory.
-    @return Returns 0 on success, -1 on error.
+    @return Returns True on success, False on error.
     """
-    raise NotImplementedError, "TODO(travis)"
+    if libhdfs.hdfsCreateDirectory(path) == 0:
+      return True
+    else:
+      return False
 
   def move(self, srcFS, srcPath, dstFS, dstPath):
     """Move file from one filesystem to another.
