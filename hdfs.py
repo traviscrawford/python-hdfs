@@ -1,3 +1,5 @@
+#!/usr/bin/python26
+
 import os
 from ctypes import *
 
@@ -146,7 +148,7 @@ class File(object):
     than length; None on error.
     """
     st = self.stat()
-    if position > st.mSize:
+    if position >= st.mSize:
       return None
 
     buf = create_string_buffer(length)
@@ -155,54 +157,35 @@ class File(object):
     ret = libhdfs.hdfsPread(self.fs, self.fh, position, buf_p, length)
     if ret == -1:
       raise HdfsError('read failure')
-    return buf.value[0:ret]
+    return buf.value
 
-  def read(self, length=None):
-    if length:
-      buf_size = length
-    else:
-      st = self.stat()
-      buf_size = st.mSize
+  def read(self):
+    st = self.stat()
 
-    buf = create_string_buffer(buf_size)
+    buf = create_string_buffer(st.mSize)
     buf_p = cast(buf, c_void_p)
 
-    ret = libhdfs.hdfsRead(self.fs, self.fh, buf_p, buf_size)
+    ret = libhdfs.hdfsRead(self.fs, self.fh, buf_p, st.mSize)
     if ret == -1:
       raise HdfsError('read failure')
     return buf.value[0:ret]
 
-  def readline(self, length=1):
-    import time
-    data = ''
-
+  def readline(self, length=100):
+    line = ''
     while True:
-      time.sleep(1)
-      print "==> Pos: %d" % self.readline_pos
-      print "==> Data: %s" % data
-
-      read_data = self.pread(self.readline_pos, length)
-
-      if read_data is None:
-        print "==> No more data"
-        self.readline_pos = 0
-        return None
-
-      self.readline_pos += len(read_data)
-      data += read_data
-
+      data = self.pread(self.readline_pos, length)
+      if data is None:
+        return line
       newline_pos = data.find('\n')
-      if newline_pos > -1:
-        print "==> Found a newline"
-        return data[0:newline_pos]
+      if newline_pos == -1:
+        self.readline_pos += len(data)
+        line += data
+      else:
+        self.readline_pos += newline_pos+1
+        return line + data[0:newline_pos+1]
 
   def readlines(self):
-    lines = []
-    line = self.readline()
-    while line:
-      lines.append(line)
-      line = self.readline()
-    return lines
+    return [line for line in self]
 
   def seek(self, position):
     """Seek to given offset in file. This works only for

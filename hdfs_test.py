@@ -42,18 +42,31 @@ class FileTestCase(unittest.TestCase):
 
     hfile.close()
 
-  def test_iter(self):
-    data = StringIO('a\nb\nc')
+  def test_iter_with_trailing_newline(self):
+    write_data = 'a\nb\nc\n'
     hfile = hdfs.File(hostname, port, path, mode='w')
-    for line in data:
-      self.assertTrue(hfile.write(line))
+    self.assertTrue(hfile.write(write_data))
     hfile.close()
 
     hfile = hdfs.File(hostname, port, path)
+    read_data = ''
     for line in hfile:
-      print "==> Read line: %s" % line
+      read_data += line
 
-    #self.assertEqual(data, read_data)
+    self.assertEqual(write_data, read_data)
+
+  def test_iter_without_trailing_newline(self):
+    write_data = 'a\nb\nc'
+    hfile = hdfs.File(hostname, port, path, mode='w')
+    self.assertTrue(hfile.write(write_data))
+    hfile.close()
+
+    hfile = hdfs.File(hostname, port, path)
+    read_data = ''
+    for line in hfile:
+      read_data += line
+
+    self.assertEqual(write_data, read_data)
 
 if __name__ == '__main__':
   test_cases = [#FilesystemTestCase,
