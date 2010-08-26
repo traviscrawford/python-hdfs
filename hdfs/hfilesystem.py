@@ -1,11 +1,12 @@
-class Filesystem(object):
+from hdfs._common import *
+
+class Hfilesystem(object):
 
   def __init__(self, hostname='default', port=0):
     self.libhdfs = libhdfs
-    self.fs = None
     self.hostname = hostname
     self.port = port
-    self.connect(self.hostname, self.port)
+    self.fs = libhdfs.hdfsConnect(hostname, port)
 
   def __del__(self):
     if self.fs:

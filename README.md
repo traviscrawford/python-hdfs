@@ -7,15 +7,17 @@ a file-like object, working with HDFS files feels similar to how you'd expect.
 Quick Start
 -----------
 
-    import hdfs
+    from hdfs.hfile import Hfile
 
-    hfile = hdfs.File(hostname, port, path, mode='w')
-    hfile.write('foo')
+    hfile = Hfile(hostname, port, path, mode='w')
+    hfile.write(data)
     hfile.close()
 
-    hfile = hdfs.File(hostname, port, path)
+    hfile = Hfile(hostname, port, path)
     data = hfile.read()
     hfile.close()
+
+See example.py for more help getting started.
 
 Development Status
 ------------------
@@ -23,7 +25,7 @@ Development Status
 The library is under active development and should not be used in production
 at this time. The ctypes layer wrapping the native client works correctly, as
 do critical methods like read and write. Areas under development include
-iteration, a Filesystem class, and general polish.
+implementing more Hfilesystem methods, and general polish.
 
 Contributing
 ------------
