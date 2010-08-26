@@ -3,7 +3,6 @@ from hdfs._common import *
 class Hfilesystem(object):
 
   def __init__(self, hostname='default', port=0):
-    self.libhdfs = libhdfs
     self.hostname = hostname
     self.port = port
     self.fs = libhdfs.hdfsConnect(hostname, port)
@@ -12,24 +11,47 @@ class Hfilesystem(object):
     if self.fs:
       self.disconnect()
 
-  def chmod(self, path, mode):
-    """
+  def capacity(self):
+    """Return the raw capacity of the filesystem.
+
     @param fs The configured filesystem handle.
+    @return Returns the raw-capacity; None on error.
+    """
+    cap = libhdfs.hdfsGetCapacity(self.fs)
+    if cap != -1:
+      return cap
+    else:
+      return None
+
+  def chmod(self, path, mode):
+    """Change file mode.
+
+    Permissions in HDFS are POSIX-like, with some important differences.
+
+    For more information, please see:
+    http://hadoop.apache.org/hdfs/docs/current/hdfs_permissions_guide.html
+
     @param path the path to the file or directory
     @param mode the bitmask to set it to
-    @return 0 on success else -1
+    @return True on success else False
     """
-    raise NotImplementedError, "TODO(travis)"
+    if libhdfs.hdfsChmod(self.fs, path, mode) == 0:
+      return True
+    else:
+      return False
 
   def chown(self, path, owner, group):
-    """
-    @param fs The configured filesystem handle.
+    """Change owner and group for a file.
+
     @param path the path to the file or directory
-    @param owner this is a string in Hadoop land. Set to null or "" if only setting group
-    @param group  this is a string in Hadoop land. Set to null or "" if only setting user
-    @return 0 on success else -1
+    @param owner this is a string in Hadoop land. Set to None if only setting group
+    @param group  this is a string in Hadoop land. Set to None if only setting user
+    @return Returns True on success, False on error.
     """
-    raise NotImplementedError, "TODO(travis)"
+    if libhdfs.hdfsChown(self.fs, path, owner, group) == 0:
+      return True
+    else:
+      return False
 
   def connect(self, hostname, port):
     """Connect to a hdfs file system.
@@ -68,7 +90,7 @@ class Hfilesystem(object):
       return False
 
   def disconnect(self):
-    if self.libhdfs.hdfsDisconnect(self.fs) == -1:
+    if libhdfs.hdfsDisconnect(self.fs) == -1:
       raise HdfsError('Failed disconnecting from %s:%d' % (self.hostname, self.port))
 
   def exists(self, path):
@@ -81,14 +103,6 @@ class Hfilesystem(object):
       return True
     else:
       return False
-
-  def get_capacity(self):
-    """Return the raw capacity of the filesystem.
-
-    @param fs The configured filesystem handle.
-    @return Returns the raw-capacity; -1 on error.
-    """
-    raise NotImplementedError, "TODO(travis)"
 
   def get_default_block_size(self):
     """Get the optimum blocksize.
@@ -168,3 +182,11 @@ class Hfilesystem(object):
     @return Returns 0 on success, -1 on error.
     """
     raise NotImplementedError, "TODO(travis)"
+
+  def stat(self, path):
+    """Get file status.
+
+    @param path The path of the file.
+    @return Returns a hdfsFileInfo structure.
+    """
+    return libhdfs.hdfsGetPathInfo(self.fs, path).contents
