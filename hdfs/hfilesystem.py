@@ -190,3 +190,17 @@ class Hfilesystem(object):
     @return Returns a hdfsFileInfo structure.
     """
     return libhdfs.hdfsGetPathInfo(self.fs, path).contents
+
+  def getHosts(self, path, begin, offset):
+    '''Get host list.
+    '''
+    libhdfs.hdfsGetHosts.restype = ctypes.POINTER(ctypes.POINTER(ctypes.c_char_p))
+    r= libhdfs.hdfsGetHosts(self.fs, path, begin, offset)
+    i=0
+    ret = []
+    while r[0][i]:
+       ret.append(r[0][i])
+       i+=1
+    if r:
+      libhdfs.hdfsFreeHosts(r)
+    return ret

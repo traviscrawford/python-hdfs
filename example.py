@@ -45,3 +45,8 @@ print motd == data_read_from_hdfs
 hfile.close()
 
 # Hopefully you have enough info to get started!
+
+from hdfs.hfilesystem import Hfilesystem
+hfs = Hfilesystem(hostname, port)
+print hfs.getHosts(hdfs_path, 0, 1)
+
