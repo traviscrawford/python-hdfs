@@ -194,7 +194,6 @@ class Hfilesystem(object):
   def getHosts(self, path, begin, offset):
     '''Get host list.
     '''
-    libhdfs.hdfsGetHosts.restype = ctypes.POINTER(ctypes.POINTER(ctypes.c_char_p))
     r= libhdfs.hdfsGetHosts(self.fs, path, begin, offset)
     i=0
     ret = []

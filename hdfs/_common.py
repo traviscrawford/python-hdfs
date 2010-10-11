@@ -71,3 +71,5 @@ libhdfs.hdfsTell.restype = tOffset
 libhdfs.hdfsUtime.argtypes = [hdfsFS, c_char_p, tTime, tTime]
 libhdfs.hdfsWrite.argtypes = [hdfsFS, hdfsFile, c_void_p, tSize]
 libhdfs.hdfsWrite.restype = tSize
+libhdfs.hdfsGetHosts.restype = POINTER(POINTER(c_char_p))
+libhdfs.hdfsGetHosts.argtypes = [hdfsFS, c_char_p, tOffset, tOffset]
