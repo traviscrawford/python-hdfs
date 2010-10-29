@@ -129,7 +129,7 @@ class Hfilesystem(object):
     @return Returns a dynamically-allocated array of hdfsFileInfo objects;
     NULL on error.
     """
-    if not self.exists(self, path):
+    if not self.exists(path):
       return None
 
     path = c_char_p(path)
