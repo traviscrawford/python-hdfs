@@ -146,7 +146,7 @@ class Hfilesystem(object):
     @param path The path of the directory.
     @return Returns True on success, False on error.
     """
-    if libhdfs.hdfsCreateDirectory(path) == 0:
+    if libhdfs.hdfsCreateDirectory(self.fs, path) == 0:
       return True
     else:
       return False
