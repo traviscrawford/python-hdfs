@@ -27,6 +27,11 @@ class HfilesystemTestCase(unittest.TestCase):
     self.assertTrue(fs.delete(path + 'renamed'))
     self.assertFalse(fs.delete(path))
 
+  def test_mkdir(self):
+    fs = Hfilesystem(hostname, port)
+    self.assertTrue(fs.mkdir(path))
+    self.assertTrue(fs.delete(path))
+
 
 if __name__ == '__main__':
   test_cases = [HfilesystemTestCase,
